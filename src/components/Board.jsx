@@ -2,92 +2,72 @@ import { useEffect, useState, useMemo } from "react";
 import { Search, Moon } from "lucide-react";
 import Column from "./Column.jsx";
 import Toast from "./Toast.jsx";
-import { getBoards, getBoard, getColumnsByBoard, createTask, deleteTask, moveTask } from "../api.js";
+import { getTasks, createTask, updateTask, deleteTask } from "../api.js";
 
-// Ikon berdasarkan urutan posisi kolom dari backend
 function getColumnIcon(column) {
   const icons = ["▣", "☰", "◷", "✓"];
   return icons[(column.position - 1) % icons.length] || "☐";
 }
 
+const defaultColumns = [
+  { id: 1, name: "To-do", position: 1 },
+  { id: 2, name: "In Progress", position: 2 },
+  { id: 3, name: "Review", position: 3 },
+  { id: 4, name: "Done", position: 4 },
+];
+
 export default function Board() {
-  // State utama
   const [boardTitle, setBoardTitle] = useState("Board Saya");
   const [columns, setColumns] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // State filter
   const [activeStatus, setActiveStatus] = useState("all");
   const [search, setSearch] = useState("");
 
-  // State toast notifikasi
   const [toast, setToast] = useState(null);
+  function showToast(message, type = "error") { setToast({ message, type }); }
+  function closeToast() { setToast(null); }
 
-  function showToast(message, type = "error") {
-    setToast({ message, type });
-  }
-
-  function closeToast() {
-    setToast(null);
-  }
-
-  // ─── AMBIL DATA DARI BACKEND ──────────────────────────
+  // ─── AMBIL DATA ─────────────────────────────────────
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
         setError(null);
 
-        // Dapatkan daftar semua board
+        // TODO: implementasi fungsi get task
 
-
-        // Pastikan data boards adalah array
-        if (!Array.isArray(boards) || boards.length === 0) {
-          setBoardTitle("Belum ada board");
-          setColumns([]);
+        if (!Array.isArray(tasksData) || tasksData.length === 0) {
+          setBoardTitle("Main Board");
+          setColumns(defaultColumns);
           setTasks([]);
           return;
         }
 
-        // Ambil board pertama + seluruh kolom + task nya
-        const boardId = boards[0]?.id;
-        if (!boardId) {
-          setError("Data board tidak valid.");
-          return;
-        }
+        const boardName = tasksData[0]?.column?.board?.name || "Main Board";
+        setBoardTitle(boardName);
 
-        // TODO: Ambil detail board
-
-        setBoardTitle(boardData?.name || "Board Saya");
-
-        // TODO: Ambil kolom + tasks — backend pake "Columns" (capital C) dan "Tasks" (capital T)
-        let cols = [];
-        try {
-            
-          // TODO: gunakan function get columns by board
-          cols = columnsRes.data;
-        } catch {
-          cols = boardData?.Columns || boardData?.columns || [];
-        }
-
-        if (!Array.isArray(cols)) cols = [];
-
+        const columnMap = new Map();
+        tasksData.forEach((task) => {
+          if (task.column && !columnMap.has(task.column.id)) {
+            columnMap.set(task.column.id, task.column);
+          }
+        });
+        const cols = Array.from(columnMap.values()).sort(
+          (a, b) => a.position - b.position
+        );
         setColumns(cols);
 
-        // Gabung semua task dari tiap kolom, tambah field "status" biar gampang difilter
-        const allTasks = [];
-        cols.forEach((col) => {
-          const tasksList = col.Tasks || col.tasks || [];
-          tasksList.forEach((task) => {
-            allTasks.push({ ...task, status: col.id });
-          });
-        });
+        const allTasks = tasksData.map((task) => ({
+          ...task,
+          status: task.column_id,
+        }));
         setTasks(allTasks);
       } catch (err) {
         console.error(err);
-        setError("Gagal ambil data. Jalankan backend dulu di http://localhost:5000");
+        setError("Gagal ambil data. Jalankan backend dulu di http://127.0.0.1:3000");
       } finally {
         setLoading(false);
       }
@@ -96,10 +76,12 @@ export default function Board() {
     fetchData();
   }, []);
 
-  // TODO: lengkapi function handle add task
+  // ─── CRUD ───────────────────────────────────────────
+
   async function handleAddTask(columnId, formData) {
     try {
-      // TODO: gunakan function createTask
+      // TODO: implementasi fungsi create task
+
       setTasks((prev) => [...prev, { ...taskBaru, status: columnId }]);
       showToast("Task berhasil ditambahkan!", "success");
     } catch {
@@ -107,10 +89,10 @@ export default function Board() {
     }
   }
 
-  // TODO: lengkapi function handle delete
   async function handleDeleteTask(taskId) {
     try {
-      // TODO: gunakan function delete task
+      // TODO: implementasi fungsi untuk delete task
+
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       showToast("Task berhasil dihapus!", "success");
     } catch {
@@ -118,10 +100,10 @@ export default function Board() {
     }
   }
 
-  // TODO: lengkapi function handle move task
   async function handleMoveTask(taskId, newColumnId) {
     try {
-      // TODO: gunakan function move task
+      // TODO: implementasi fungsi update task
+
       setTasks((prev) =>
         prev.map((t) =>
           t.id === taskId ? { ...t, status: newColumnId } : t
@@ -129,14 +111,16 @@ export default function Board() {
       );
       showToast("Task berhasil dipindahkan!", "success");
     } catch {
-      showToast("WIP limit! Selesaikan task dulu.");
+      showToast("Gagal pindahin task.");
     }
   }
 
-  // ─── FILTER TASK ──────────────────────────────────────
+  // ─── FILTER ─────────────────────────────────────────
+
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
-      const matchStatus = activeStatus === "all" || task.status === activeStatus;
+      const matchStatus =
+        activeStatus === "all" || task.status === activeStatus;
       const keyword = search.toLowerCase();
       const matchSearch =
         (task.title && task.title.toLowerCase().includes(keyword)) ||
@@ -145,13 +129,13 @@ export default function Board() {
     });
   }, [tasks, activeStatus, search]);
 
-  // Kolom yang tampil (semua atau hanya satu)
   const visibleColumns =
     activeStatus === "all"
       ? columns
       : columns.filter((col) => col.id === activeStatus);
 
-  // ─── LOADING ──────────────────────────────────────────
+  // ─── LOADING ────────────────────────────────────────
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -160,7 +144,6 @@ export default function Board() {
     );
   }
 
-  // ─── ERROR ────────────────────────────────────────────
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-white">
@@ -175,30 +158,15 @@ export default function Board() {
     );
   }
 
-  // ─── KOSONG (BELUM ADA BOARD) ─────────────────────────
-  if (columns.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-white">
-        <p className="text-lg text-indigo-950 font-bold">
-          {boardTitle}
-        </p>
-        <p className="text-sm text-slate-400">
-          Buat board dulu lewat backend, atau pastikan backend sudah jalan.
-        </p>
-      </div>
-    );
-  }
+  // ─── RENDER ─────────────────────────────────────────
 
-  // ─── RENDER UTAMA ─────────────────────────────────────
   return (
     <div className="min-h-screen bg-white text-indigo-950 font-sans">
-      {/* ─── HEADER ─── */}
       <header className="h-16 px-16 max-md:px-5 bg-blue-50 flex items-center justify-between">
         <div className="flex items-center gap-7 font-bold">
           <Moon size={18} />
           <span>INDIGO</span>
         </div>
-
         <nav className="flex items-center gap-7 font-bold">
           <a className="cursor-pointer">Project</a>
           <a className="cursor-pointer">People</a>
@@ -206,15 +174,12 @@ export default function Board() {
         </nav>
       </header>
 
-      {/* ─── KONTEN UTAMA ─── */}
       <main className="py-8 px-16 max-md:px-5">
         <section className="flex flex-wrap items-center gap-3 mb-6">
-          {/* Pilih Project */}
           <select className="w-40 h-10 px-4 border-none rounded-full bg-indigo-50/50 text-indigo-900 font-bold outline-none cursor-pointer">
             <option>{boardTitle}</option>
           </select>
 
-          {/* Tombol filter status */}
           <div className="flex gap-2 max-md:overflow-x-auto">
             <button
               className={`h-10 px-4 border-none rounded-full font-bold cursor-pointer outline-none whitespace-nowrap ${
@@ -242,7 +207,6 @@ export default function Board() {
             ))}
           </div>
 
-          {/* Input Pencarian */}
           <div className="flex-1 h-10 px-3 flex items-center border-none rounded-full bg-indigo-50/50 text-indigo-900 font-bold">
             <input
               type="text"
@@ -255,7 +219,6 @@ export default function Board() {
           </div>
         </section>
 
-        {/* Daftar Kolom */}
         <section
           className={`grid gap-4 max-md:grid-cols-1 ${
             activeStatus !== "all" ? "grid-cols-1 max-w-sm" : "grid-cols-4"
@@ -276,7 +239,6 @@ export default function Board() {
         </section>
       </main>
 
-      {/* Toast notifikasi */}
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={closeToast} />
       )}

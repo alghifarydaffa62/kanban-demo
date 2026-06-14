@@ -1,63 +1,141 @@
-import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import Card from "./Card.jsx";
 
-// Ubah "2026-06-30" jadi "30 Juni 2026"
-function formatDeadline(isoDate) {
-  if (!isoDate) return null;
-  try {
-    const date = new Date(isoDate + "T00:00:00");
-    return date.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return isoDate;
+export default function Column({
+  columnId,
+  title,
+  icon,
+  tasks,
+  onAddTask,
+  onDeleteTask,
+  onMoveTask,
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [formTitle, setFormTitle] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+
+  // ─── DRAG & DROP ──────────────────────────────────────
+
+  function handleDragStart(e, taskId) {
+    e.dataTransfer.setData(
+      "text/plain",
+      JSON.stringify({ taskId, sourceColumnId: columnId })
+    );
+    e.dataTransfer.effectAllowed = "move";
   }
-}
 
-export default function Card({ task, onDelete, onDragStart }) {
-  const taskTitle = task?.title || "(Tanpa judul)";
-  const taskDesc = task?.description || "";
-  const taskDeadline = formatDeadline(task?.deadline);
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setDragOver(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if (data.taskId && data.sourceColumnId !== columnId) {
+        onMoveTask(data.taskId, columnId);
+      }
+    } catch {
+      // data transfer invalid
+    }
+  }
+
+  // ─── FORM ─────────────────────────────────────────────
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!formTitle.trim()) return;
+
+    onAddTask(columnId, {
+      title: formTitle,
+      description: formDesc,
+      position: tasks.length + 1,
+    });
+
+    setFormTitle("");
+    setFormDesc("");
+    setShowForm(false);
+  }
 
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, task?.id)}
-      className="bg-white rounded-xl p-3.5 mb-3 cursor-grab active:cursor-grabbing select-none"
+      className={`bg-blue-50/70 rounded-2xl p-4 min-h-96 transition-all ${
+        dragOver ? "bg-indigo-100 ring-2 ring-indigo-300" : ""
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
-      {/* Deadline */}
-      {taskDeadline && (
-        <div className="flex justify-end mb-2">
-          <span className="text-[10px] font-semibold text-slate-400">
-            {taskDeadline}
-          </span>
-        </div>
-      )}
-
-      {/* Judul */}
-      <h4 className="text-sm font-bold mb-1">{taskTitle}</h4>
-
-      {/* Deskripsi */}
-      {taskDesc && (
-        <p className="text-xs text-slate-500 mb-2 leading-relaxed line-clamp-2">
-          {taskDesc}
-        </p>
-      )}
-
-      {/* Tombol hapus */}
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-base font-bold">
+          {icon} {title}
+        </h3>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(task?.id);
-          }}
-          className="text-red-300 hover:text-red-500 bg-transparent hover:bg-red-50 rounded-lg p-1.5 cursor-pointer border-none transition-colors"
-          title="Hapus task"
+          onClick={() => setShowForm(!showForm)}
+          className="border-none bg-transparent text-2xl cursor-pointer outline-none"
         >
-          <Trash2 size={14} />
+          +
         </button>
       </div>
+
+      {showForm && (
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-xl p-3.5 mb-3.5 space-y-2"
+        >
+          <input
+            type="text"
+            placeholder="Judul task"
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.target.value)}
+            className="w-full text-sm font-bold border border-indigo-200 rounded-lg px-3 py-2 outline-none"
+            required
+          />
+          <textarea
+            placeholder="Deskripsi (opsional)"
+            value={formDesc}
+            onChange={(e) => setFormDesc(e.target.value)}
+            className="w-full text-xs border border-indigo-200 rounded-lg px-3 py-2 outline-none resize-none"
+            rows={2}
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="flex-1 bg-indigo-950 text-white text-xs font-bold rounded-lg py-2 cursor-pointer"
+            >
+              Tambah
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="flex-1 bg-slate-200 text-slate-600 text-xs font-bold rounded-lg py-2 cursor-pointer"
+            >
+              Batal
+            </button>
+          </div>
+        </form>
+      )}
+
+      {tasks.length > 0 ? (
+        tasks.map((task) => (
+          <Card
+            key={task.id}
+            task={task}
+            onDelete={onDeleteTask}
+            onDragStart={handleDragStart}
+          />
+        ))
+      ) : (
+        <p className="text-sm text-slate-400">Belum ada task.</p>
+      )}
     </div>
   );
 }

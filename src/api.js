@@ -1,34 +1,28 @@
-import axios from "axios";
-
-// inisialisasi axios
 
 
-// lengkapi function get boards untuk mengambil keseluruhan board
-export function getBoards() {
+// inisiasi axios
 
-}
-
-// lengkapi function get board untuk mengambil board berdasarkan ID
-export function getBoard(id) {
+// TODO: lengkapi function get task untuk meretrieve task
+export function getTasks() {
 
 }
 
-// lengkapi function get column berdasarkan ID
-export function getColumnsByBoard(boardId) {
+// TODO: lengkapi function get task berdasarkan id
+export function getTask(id) {
 
 }
 
-// lengkapi function untuk membuat Task baru 
-export function createTask(columnId, data) {
+// TODO: lengkapi function create task untuk bisa membuat task baru
+export function createTask(data) {
 
 }
 
-// lengkapi function untuk menghapus task
+// TODO: lengkapi function untuk update task
+export function updateTask(id, data) {
+
+}
+
+// lengkapi function untuk delete tas
 export function deleteTask(id) {
-
-}
-
-// TODO: lengkapi function untuk memindahkan task 
-export function moveTask(id, data) {
 
 }
