@@ -49,16 +49,7 @@ export default function Board() {
         const boardName = tasksData[0]?.column?.board?.name || "Main Board";
         setBoardTitle(boardName);
 
-        const columnMap = new Map();
-        tasksData.forEach((task) => {
-          if (task.column && !columnMap.has(task.column.id)) {
-            columnMap.set(task.column.id, task.column);
-          }
-        });
-        const cols = Array.from(columnMap.values()).sort(
-          (a, b) => a.position - b.position
-        );
-        setColumns(cols);
+        setColumns(defaultColumns);
 
         const allTasks = tasksData.map((task) => ({
           ...task,
@@ -92,7 +83,6 @@ export default function Board() {
   async function handleDeleteTask(taskId) {
     try {
       // TODO: implementasi fungsi untuk delete task
-
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       showToast("Task berhasil dihapus!", "success");
     } catch {
@@ -103,7 +93,6 @@ export default function Board() {
   async function handleMoveTask(taskId, newColumnId) {
     try {
       // TODO: implementasi fungsi update task
-
       setTasks((prev) =>
         prev.map((t) =>
           t.id === taskId ? { ...t, status: newColumnId } : t
